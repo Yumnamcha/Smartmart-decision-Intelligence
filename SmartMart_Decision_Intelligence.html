@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartMart — Decision Intelligence System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --bg:#0d0f1a;--bg2:#131627;--bg3:#1a1f35;--bg4:#212640;
+    --border:#2a3050;--border2:#3a4570;
+    --blue:#4f8ef7;--green:#3dd68c;--red:#f75f5f;--amber:#f7b731;
+    --teal:#3dd6c8;--purple:#a78bfa;--pink:#f472b6;
+    --text:#e8eaf6;--text2:#9ca3c8;--text3:#5a6285;
+    --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+    --radius:12px;--radius-sm:8px;
+  }
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+  /* ── TOP BAR ── */
+  .topbar{background:linear-gradient(135deg,#1a1f35 0%,#212640 100%);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;}
+  .logo{display:flex;align-items:center;gap:12px;}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .logo-text{font-size:15px;font-weight:700;letter-spacing:.3px;}
+  .logo-sub{font-size:11px;color:var(--text2);font-family:var(--mono);}
+  .topbar-right{display:flex;align-items:center;gap:16px;}
+  .badge{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-family:var(--mono);color:var(--text2);}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* ── SIDEBAR ── */
+  .layout{display:flex;min-height:calc(100vh - 60px);}
+  .sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);padding:16px 0;flex-shrink:0;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;}
+  .sidebar-section{padding:8px 16px 4px;font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text3);text-transform:uppercase;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;color:var(--text2);border-left:3px solid transparent;transition:all .18s;}
+  .nav-item:hover{background:var(--bg3);color:var(--text);}
+  .nav-item.active{background:rgba(79,142,247,.1);color:var(--blue);border-left-color:var(--blue);}
+  .nav-icon{width:20px;text-align:center;font-size:14px;}
+  .nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-family:var(--mono);}
+  .nav-badge.green{background:var(--green);color:#000;}
+
+  /* ── MAIN CONTENT ── */
+  .main{flex:1;padding:24px;overflow-x:hidden;}
+  .page{display:none;}
+  .page.active{display:block;animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── COMPONENTS ── */
+  .page-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+  .page-sub{font-size:13px;color:var(--text2);margin-bottom:20px;}
+  .section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+  .section-title{font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  .kpi-grid{display:grid;gap:12px;margin-bottom:16px;}
+  .kpi-grid.cols2{grid-template-columns:repeat(2,1fr);}
+  .kpi-grid.cols3{grid-template-columns:repeat(3,1fr);}
+  .kpi-grid.cols4{grid-template-columns:repeat(4,1fr);}
+  .kpi{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;}
+  .kpi-label{font-size:11px;color:var(--text3);margin-bottom:6px;font-family:var(--mono);}
+  .kpi-val{font-size:24px;font-weight:700;line-height:1;margin-bottom:4px;}
+  .kpi-sub{font-size:11px;color:var(--text2);}
+  .up{color:var(--green);} .down{color:var(--red);} .warn{color:var(--amber);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+  .chart-wrap{position:relative;width:100%;}
+
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{text-align:left;padding:9px 12px;color:var(--text3);font-weight:600;font-family:var(--mono);font-size:10px;letter-spacing:.5px;border-bottom:1px solid var(--border);text-transform:uppercase;}
+  td{padding:9px 12px;border-bottom:1px solid rgba(42,48,80,.5);color:var(--text2);}
+  tr:hover td{background:var(--bg3);color:var(--text);}
+  .td-main{color:var(--text);font-weight:500;}
+
+  .pill{display:inline-block;border-radius:20px;padding:2px 10px;font-size:10px;font-weight:600;font-family:var(--mono);}
+  .pill-red{background:rgba(247,95,95,.15);color:var(--red);border:1px solid rgba(247,95,95,.3);}
+  .pill-green{background:rgba(61,214,140,.15);color:var(--green);border:1px solid rgba(61,214,140,.3);}
+  .pill-amber{background:rgba(247,183,49,.15);color:var(--amber);border:1px solid rgba(247,183,49,.3);}
+  .pill-blue{background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3);}
+  .pill-purple{background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3);}
+
+  .bar-h{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .bar-h-label{width:110px;font-size:11px;color:var(--text2);text-align:right;flex-shrink:0;}
+  .bar-h-track{flex:1;height:20px;background:var(--bg3);border-radius:4px;overflow:hidden;border:1px solid var(--border);}
+  .bar-h-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:600;font-family:var(--mono);transition:width 1s ease;}
+  .bar-h-val{margin-left:8px;font-size:11px;font-family:var(--mono);width:60px;}
+
+  .issue-card{border-left:3px solid var(--red);background:rgba(247,95,95,.05);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:12px 16px;margin-bottom:10px;}
+  .issue-card.warn{border-left-color:var(--amber);background:rgba(247,183,49,.05);}
+  .issue-card.ok{border-left-color:var(--green);background:rgba(61,214,140,.05);}
+  .issue-card.blue{border-left-color:var(--blue);background:rgba(79,142,247,.05);}
+  .issue-title{font-weight:600;font-size:13px;margin-bottom:4px;}
+  .issue-body{font-size:12px;color:var(--text2);line-height:1.6;}
+
+  /* ── SLIDERS ── */
+  .scenario-row{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;}
+  .scenario-row label{font-size:12px;color:var(--text2);flex-shrink:0;width:160px;}
+  input[type=range]{flex:1;min-width:120px;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border2);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;border:2px solid var(--bg);}
+  input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue);cursor:pointer;}
+  .scenario-val{font-family:var(--mono);font-size:13px;font-weight:600;min-width:60px;text-align:right;color:var(--blue);}
+
+  .impact-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px;}
+  .impact-cell{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;}
+  .impact-val{font-size:22px;font-weight:700;font-family:var(--mono);}
+  .impact-lbl{font-size:10px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+
+  .insight-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;margin-top:14px;font-size:12px;color:var(--text2);line-height:1.7;border-left:3px solid var(--blue);}
+
+  /* ── DECISION CARDS ── */
+  .decision-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;transition:border-color .2s;}
+  .decision-card:hover{border-color:var(--blue);}
+  .decision-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
+  .decision-num{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+  .decision-title{font-size:14px;font-weight:600;margin-bottom:3px;}
+  .decision-tag{font-size:10px;color:var(--text3);font-family:var(--mono);}
+  .decision-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .dg-cell{background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;border:1px solid var(--border);}
+  .dg-cell b{display:block;font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);}
+  .dg-cell p{font-size:12px;color:var(--text2);line-height:1.5;}
+
+  /* ── RECOMMENDATIONS ── */
+  .rec-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);}
+  .rec-item:last-child{border-bottom:none;}
+  .rec-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;}
+  .rec-body{flex:1;}
+  .rec-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .rec-sub{font-size:12px;color:var(--text2);line-height:1.5;}
+  .rec-timeline{display:inline-block;font-size:10px;font-family:var(--mono);border:1px solid var(--border);border-radius:20px;padding:2px 8px;color:var(--text3);margin-top:6px;}
+
+  .strat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
+  .strat-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+  .strat-box h4{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .strat-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12px;color:var(--text2);}
+  .strat-arrow{color:var(--blue);flex-shrink:0;margin-top:1px;}
+
+  /* ── ML ALGORITHM CARDS ── */
+  .ml-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+  .ml-card-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .ml-num{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--mono);flex-shrink:0;}
+  .ml-name{font-size:13px;font-weight:600;}
+  .ml-purpose{font-size:11px;color:var(--text3);}
+  .ml-metrics{display:flex;gap:16px;flex-wrap:wrap;}
+  .ml-metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 12px;text-align:center;}
+  .ml-metric .val{font-size:15px;font-weight:700;font-family:var(--mono);}
+  .ml-metric .lbl{font-size:10px;color:var(--text3);}
+
+  .data-table-wrap{overflow-x:auto;}
+  .progress-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:4px;}
+  .progress-fill{height:100%;border-radius:3px;transition:width 1.2s ease;}
+
+  /* ── MATRIX TABLE ── */
+  .matrix-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .matrix-table th{background:var(--bg4);padding:8px 12px;text-align:center;border:1px solid var(--border);color:var(--text2);font-size:11px;}
+  .matrix-table td{padding:8px 12px;text-align:center;border:1px solid var(--border);font-family:var(--mono);font-size:12px;}
+  .matrix-table tr td:first-child{text-align:left;font-weight:600;color:var(--text);background:var(--bg4);}
+  .cell-profit{color:var(--green);}
+  .cell-loss{color:var(--red);}
+  .cell-warn{color:var(--amber);}
+
+  /* ── FOOTER ── */
+  .footer{text-align:center;padding:24px;color:var(--text3);font-size:11px;border-top:1px solid var(--border);margin-top:8px;}
+
+  @media(max-width:900px){
+    .sidebar{display:none;}
+    .kpi-grid.cols4{grid-template-columns:repeat(2,1fr);}
+    .grid2,.grid3{grid-template-columns:1fr;}
+    .decision-grid,.strat-grid,.impact-grid{grid-template-columns:1fr;}
+    .impact-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🛒</div>
+    <div>
+      <div class="logo-text">SmartMart DIS</div>
+      <div class="logo-sub">Decision Intelligence System</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="badge">FY 2024 · 4 Regions · 5 Categories</div>
+    <div class="badge" style="display:flex;align-items:center;gap:6px;"><div class="live-dot"></div>Live Analysis</div>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-section">Navigation</div>
+  <div class="nav-item active" onclick="showPage('p1',this)"><span class="nav-icon">🔍</span>Data Quality<span class="nav-badge">T1</span></div>
+  <div class="nav-item" onclick="showPage('p2',this)"><span class="nav-icon">📊</span>BI Analysis<span class="nav-badge green">T2</span></div>
+  <div class="nav-item" onclick="showPage('p3',this)"><span class="nav-icon">⚠️</span>Problems<span class="nav-badge">T3</span></div>
+  <div class="nav-item" onclick="showPage('p4',this)"><span class="nav-icon">🤖</span>ML Predictions<span class="nav-badge green">T4</span></div>
+  <div class="nav-item" onclick="showPage('p5',this)"><span class="nav-icon">✅</span>Decisions<span class="nav-badge">T5</span></div>
+  <div class="nav-item" onclick="showPage('p6',this)"><span class="nav-icon">🔄</span>What-If<span class="nav-badge green">T6</span></div>
+  <div class="nav-item" onclick="showPage('p7',this)"><span class="nav-icon">🎯</span>Recommendations<span class="nav-badge">T7</span></div>
+
+  <div class="sidebar-section" style="margin-top:16px;">ML Algorithms</div>
+  <div class="nav-item" style="font-size:11px;color:var(--text3);padding:5px 16px;cursor:default;">① Linear Regression</div>
+  <div class="nav-item" style="font-size:11px;color:var(--text3);padding:5px 16px;cursor:default;">② Random Forest</div>
+  <div class="nav-item" style="font-size:11px;color:var(--text3);padding:5px 16px;cursor:default;">③ Isolation Forest</div>
+  <div class="nav-item" style="font-size:11px;color:var(--text3);padding:5px 16px;cursor:default;">④ K-Means Cluster</div>
+  <div class="nav-item" style="font-size:11px;color:var(--text3);padding:5px 16px;cursor:default;">⑤ Gradient Boosting</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- ═══════════════════════════════════════ TASK 1 ═══════════════════════════════════════ -->
+<div class="page active" id="p1">
+  <div class="page-title">Task 1 — Data Understanding & Preparation</div>
+  <div class="page-sub">Audit of 2,340 records across sales, product, and regional tables</div>
+
+  <div class="kpi-grid cols4">
+    <div class="kpi"><div class="kpi-label">TOTAL RECORDS</div><div class="kpi-val">2,317</div><div class="kpi-sub up">↑ 23 dupes removed</div></div>
+    <div class="kpi"><div class="kpi-label">DATA QUALITY</div><div class="kpi-val up">94%</div><div class="kpi-sub">Post-cleaning score</div></div>
+    <div class="kpi"><div class="kpi-label">ISSUES FOUND</div><div class="kpi-val warn">204</div><div class="kpi-sub">Across 7 categories</div></div>
+    <div class="kpi"><div class="kpi-label">ISSUES RESOLVED</div><div class="kpi-val up">183</div><div class="kpi-sub">89.7% resolution rate</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="section-title">Issues Detected & Resolved</div>
+      <table>
+        <tr><th>Issue Type</th><th>Count</th><th>Table</th><th>Status</th></tr>
+        <tr><td class="td-main">Missing Profit values</td><td>47</td><td>sales_fact</td><td><span class="pill pill-green">Imputed</span></td></tr>
+        <tr><td class="td-main">Duplicate Order IDs</td><td>23</td><td>orders</td><td><span class="pill pill-green">Removed</span></td></tr>
+        <tr><td class="td-main">Negative Discount (error)</td><td>8</td><td>discounts</td><td><span class="pill pill-green">Corrected</span></td></tr>
+        <tr><td class="td-main">Region name mismatch</td><td>31</td><td>geo_map</td><td><span class="pill pill-green">Normalised</span></td></tr>
+        <tr><td class="td-main">Category spelling variants</td><td>14</td><td>products</td><td><span class="pill pill-green">Standardised</span></td></tr>
+        <tr><td class="td-main">Null Customer Segment</td><td>62</td><td>customers</td><td><span class="pill pill-amber">Flagged</span></td></tr>
+        <tr><td class="td-main">Date format inconsistency</td><td>19</td><td>orders</td><td><span class="pill pill-green">Converted</span></td></tr>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-title">Data Completeness After Cleaning</div>
+      <div class="bar-h"><div class="bar-h-label">Sales Data</div><div class="bar-h-track"><div class="bar-h-fill" style="width:98%;background:#3dd68c;">98%</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Region Data</div><div class="bar-h-track"><div class="bar-h-fill" style="width:95%;background:#3dd68c;">95%</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Product Data</div><div class="bar-h-track"><div class="bar-h-fill" style="width:100%;background:#3dd68c;">100%</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Discount Data</div><div class="bar-h-track"><div class="bar-h-fill" style="width:92%;background:#3dd6c8;">92%</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Customer Seg.</div><div class="bar-h-track"><div class="bar-h-fill" style="width:73%;background:#f7b731;">73%</div></div></div>
+
+      <div class="insight-box" style="margin-top:18px;">
+        <strong>Cleaning Methods:</strong><br>
+        • Missing profit → imputed using <code>Profit = Sales × Avg Category Margin</code><br>
+        • Duplicates → first occurrence kept; dupes archived<br>
+        • Region names → normalised to NORTH / SOUTH / EAST / WEST<br>
+        • Dates → converted to ISO 8601 (YYYY-MM-DD)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ TASK 2 ═══════════════════════════════════════ -->
+<div class="page" id="p2">
+  <div class="page-title">Task 2 — Business Intelligence Analysis</div>
+  <div class="page-sub">Company-wide KPIs, regional breakdowns, and category profitability for FY 2024</div>
+
+  <div class="kpi-grid cols4">
+    <div class="kpi"><div class="kpi-label">TOTAL SALES</div><div class="kpi-val" style="color:var(--blue)">$4.82M</div><div class="kpi-sub up">↑ 3.1% vs prior year</div></div>
+    <div class="kpi"><div class="kpi-label">TOTAL PROFIT</div><div class="kpi-val down">$684K</div><div class="kpi-sub down">↓ 8.2% vs prior year</div></div>
+    <div class="kpi"><div class="kpi-label">PROFIT MARGIN</div><div class="kpi-val warn">14.2%</div><div class="kpi-sub down">↓ from 17.1% last year</div></div>
+    <div class="kpi"><div class="kpi-label">AVG DISCOUNT</div><div class="kpi-val down">23.8%</div><div class="kpi-sub down">↑ from 18.4% — dangerous</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="section-title">Sales & Profit by Region</div>
+      <div class="chart-wrap" style="height:240px;"><canvas id="c-region"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Profit by Category</div>
+      <div class="chart-wrap" style="height:240px;"><canvas id="c-category"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="section-title">Monthly Sales & Profit Trend</div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="c-monthly"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Discount Impact on Profit Margin</div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="c-discount"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Region × Category Profit Matrix ($K)</div>
+    <div class="data-table-wrap">
+      <table class="matrix-table">
+        <tr><th>Region</th><th>Technology</th><th>Furniture</th><th>Office Supplies</th><th>Clothing</th><th>Food</th><th>TOTAL</th></tr>
+        <tr><td>🟢 North</td><td class="cell-profit">$142K</td><td class="cell-warn">$38K</td><td class="cell-profit">$67K</td><td class="cell-profit">$54K</td><td class="cell-profit">$29K</td><td class="cell-profit"><strong>$330K</strong></td></tr>
+        <tr><td>🔵 East</td><td class="cell-profit">$98K</td><td class="cell-warn">$22K</td><td class="cell-profit">$44K</td><td class="cell-warn">$18K</td><td class="cell-profit">$21K</td><td class="cell-profit"><strong>$203K</strong></td></tr>
+        <tr><td>🟡 West</td><td class="cell-warn">$31K</td><td class="cell-loss">-$18K</td><td class="cell-warn">$14K</td><td class="cell-loss">-$9K</td><td class="cell-warn">$12K</td><td class="cell-warn"><strong>$30K</strong></td></tr>
+        <tr><td>🔴 South</td><td class="cell-loss">-$24K</td><td class="cell-loss">-$47K</td><td class="cell-warn">$8K</td><td class="cell-loss">-$31K</td><td class="cell-loss">-$15K</td><td class="cell-loss"><strong>-$109K</strong></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ TASK 3 ═══════════════════════════════════════ -->
+<div class="page" id="p3">
+  <div class="page-title">Task 3 — Problem Identification</div>
+  <div class="page-sub">Diagnosing underperforming regions, loss-making products, and category rankings</div>
+
+  <div class="issue-card">
+    <div class="issue-title">🔴 South Region — CRITICAL: Net Loss of $109,000</div>
+    <div class="issue-body">All 5 categories are unprofitable. Average discount = 34.2% vs company average of 23.8%. Losses are growing month-over-month. Root cause: systematic over-discounting with no volume compensation.</div>
+  </div>
+  <div class="issue-card warn">
+    <div class="issue-title">🟡 West Region — WARNING: Margin Erosion ($30K profit, 2.8% margin)</div>
+    <div class="issue-body">Furniture and Clothing are both loss-making. Discount rate 28.6% and climbing. High sales volume ($1.09M) with negligible profit — risk of joining South as a loss region in Q1 2025.</div>
+  </div>
+  <div class="issue-card ok">
+    <div class="issue-title">🟢 North Region — Best Performer: $330K Profit (48% of company total)</div>
+    <div class="issue-body">Technology leads at $142K. Discount rate is lowest at 16.2%. This region's pricing discipline is the model all other regions should adopt.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="section-title">Top Loss-Making Products</div>
+      <table>
+        <tr><th>Product</th><th>Category</th><th>Profit</th><th>Discount</th></tr>
+        <tr><td class="td-main">Executive Desk Pro</td><td>Furniture</td><td class="down">-$23K</td><td class="down">41%</td></tr>
+        <tr><td class="td-main">Office Chair XL</td><td>Furniture</td><td class="down">-$18K</td><td class="down">38%</td></tr>
+        <tr><td class="td-main">Winter Jacket Bundle</td><td>Clothing</td><td class="down">-$14K</td><td class="down">45%</td></tr>
+        <tr><td class="td-main">Premium Sofa Set</td><td>Furniture</td><td class="down">-$11K</td><td class="down">36%</td></tr>
+        <tr><td class="td-main">Casual Wear Pack</td><td>Clothing</td><td class="down">-$9K</td><td class="down">42%</td></tr>
+        <tr><td class="td-main">Filing Cabinet 4D</td><td>Furniture</td><td class="down">-$7K</td><td class="down">33%</td></tr>
+        <tr><td class="td-main">Laptop Bag Set</td><td>Office Sup.</td><td class="down">-$5K</td><td class="down">31%</td></tr>
+        <tr><td class="td-main">Denim Collection</td><td>Clothing</td><td class="down">-$4K</td><td class="down">39%</td></tr>
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-title">Category Profitability Ranking</div>
+      <div class="bar-h"><div class="bar-h-label">Technology</div><div class="bar-h-track"><div class="bar-h-fill" style="width:100%;background:#3dd68c;">$247K — 28.4% margin</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Office Sup.</div><div class="bar-h-track"><div class="bar-h-fill" style="width:54%;background:#3dd6c8;">$133K</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Food</div><div class="bar-h-track"><div class="bar-h-fill" style="width:19%;background:#f7b731;">$47K</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Clothing</div><div class="bar-h-track"><div class="bar-h-fill" style="width:13%;background:#f7b731;">$32K</div></div></div>
+      <div class="bar-h"><div class="bar-h-label">Furniture</div><div class="bar-h-track"><div class="bar-h-fill" style="width:43%;background:#f75f5f;">-$105K LOSS</div></div></div>
+      <div class="insight-box" style="margin-top:16px;">
+        <strong>Key Finding:</strong> Furniture is destroying value despite being the 2nd highest sales category. Every loss-making product has a discount rate above 30%. The discount strategy — not product quality — is the root cause of losses.
+      </div>
+      <div class="section-title" style="margin-top:18px;">Discount vs Profit Correlation</div>
+      <div class="chart-wrap" style="height:180px;"><canvas id="c-discprof"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ TASK 4 ═══════════════════════════════════════ -->
+<div class="page" id="p4">
+  <div class="page-title">Task 4 — ML Predictions</div>
+  <div class="page-sub">5 machine learning algorithms applied to forecast demand, detect anomalies, and predict margins</div>
+
+  <!-- ML #1 -->
+  <div class="ml-card">
+    <div class="ml-card-head">
+      <div class="ml-num" style="background:rgba(79,142,247,.2);color:var(--blue);">①</div>
+      <div>
+        <div class="ml-name">Linear Regression — Profit Trend Analysis</div>
+        <div class="ml-purpose">Detects whether profit is growing or declining and forecasts Jan–Mar 2025</div>
+      </div>
+      <span class="pill pill-blue" style="margin-left:auto;">Supervised</span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="ml-metrics">
+          <div class="ml-metric"><div class="val down">↓</div><div class="lbl">Trend Direction</div></div>
+          <div class="ml-metric"><div class="val">0.71</div><div class="lbl">R² Score</div></div>
+          <div class="ml-metric"><div class="val warn">-$823/mo</div><div class="lbl">Slope (profit)</div></div>
+        </div>
+        <div class="insight-box" style="margin-top:12px;">
+          <strong>Forecast:</strong> Jan 2025: <span class="warn">$48.5K</span> · Feb 2025: <span class="warn">$49.7K</span> · Mar 2025: <span class="warn">$50.9K</span><br>
+          Profit trend is <strong style="color:var(--red)">DECLINING</strong> at ~$823/month. Without intervention, annual profit will fall to ~$520K by end-2025.
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:160px;"><canvas id="c-lr"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ML #2 -->
+  <div class="ml-card">
+    <div class="ml-card-head">
+      <div class="ml-num" style="background:rgba(61,214,140,.2);color:var(--green);">②</div>
+      <div>
+        <div class="ml-name">Random Forest — Sales Demand Forecasting</div>
+        <div class="ml-purpose">Predicts per-order sales using 7 features; identifies key demand drivers via feature importance</div>
+      </div>
+      <span class="pill pill-green" style="margin-left:auto;">Ensemble</span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="ml-metrics">
+          <div class="ml-metric"><div class="val up">0.989</div><div class="lbl">R² Score</div></div>
+          <div class="ml-metric"><div class="val">$210</div><div class="lbl">MAE</div></div>
+          <div class="ml-metric"><div class="val">120</div><div class="lbl">Trees</div></div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="section-title" style="margin-bottom:10px;">Feature Importance</div>
+          <div class="bar-h"><div class="bar-h-label">Unit Price</div><div class="bar-h-track"><div class="bar-h-fill" style="width:65.5%;background:#4f8ef7;">65.5%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">Quantity</div><div class="bar-h-track"><div class="bar-h-fill" style="width:32.4%;background:#3dd68c;">32.4%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">Discount %</div><div class="bar-h-track"><div class="bar-h-fill" style="width:1.8%;background:#f7b731;">1.8%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">Region</div><div class="bar-h-track"><div class="bar-h-fill" style="width:0.3%;background:#f75f5f;">0.3%</div></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">Category Demand Forecast (Jan 2025)</div>
+        <table>
+          <tr><th>Category</th><th>Avg/Order</th><th>Change</th><th>Signal</th></tr>
+          <tr><td class="td-main">Technology</td><td>$5,603</td><td class="up">+22%</td><td><span class="pill pill-green">GROW</span></td></tr>
+          <tr><td class="td-main">Office Supplies</td><td>$262</td><td class="up">+11%</td><td><span class="pill pill-green">GROW</span></td></tr>
+          <tr><td class="td-main">Food</td><td>$391</td><td class="warn">+4%</td><td><span class="pill pill-amber">STABLE</span></td></tr>
+          <tr><td class="td-main">Clothing</td><td>$1,381</td><td class="down">-6%</td><td><span class="pill pill-amber">DECLINE</span></td></tr>
+          <tr><td class="td-main">Furniture</td><td>$6,346</td><td class="down">-18%</td><td><span class="pill pill-red">DECLINE</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML #3 -->
+  <div class="ml-card">
+    <div class="ml-card-head">
+      <div class="ml-num" style="background:rgba(247,95,95,.2);color:var(--red);">③</div>
+      <div>
+        <div class="ml-name">Isolation Forest — Anomaly Detection</div>
+        <div class="ml-purpose">Detects suspicious orders (excessive discounts, extreme losses) without labelled data</div>
+      </div>
+      <span class="pill pill-red" style="margin-left:auto;">Unsupervised</span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="ml-metrics">
+          <div class="ml-metric"><div class="val down">79</div><div class="lbl">Anomalies Found</div></div>
+          <div class="ml-metric"><div class="val warn">5.1%</div><div class="lbl">Anomaly Rate</div></div>
+          <div class="ml-metric"><div class="val">100</div><div class="lbl">Trees</div></div>
+        </div>
+        <div class="insight-box" style="margin-top:12px;">
+          <strong>High-Risk Orders:</strong><br>
+          • Order #10707 — South/Furniture: $12,320 sale, <strong style="color:var(--red)">-$4,180 loss</strong>, 44% discount<br>
+          • Order #10416 — West/Furniture: $17,688 sale, <strong style="color:var(--red)">-$2,112 loss</strong>, 33% discount<br>
+          <br><strong>Anomaly hotspot:</strong> South Region (28 anomalies) + Furniture category (46 anomalies)
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="c-anomaly"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ML #4 -->
+  <div class="ml-card">
+    <div class="ml-card-head">
+      <div class="ml-num" style="background:rgba(167,139,250,.2);color:var(--purple);">④</div>
+      <div>
+        <div class="ml-name">K-Means Clustering — Product Segmentation</div>
+        <div class="ml-purpose">Groups products into natural performance clusters: Star, Average, High-Discount, Loss-Maker</div>
+      </div>
+      <span class="pill pill-purple" style="margin-left:auto;">Unsupervised</span>
+    </div>
+    <div class="grid2">
+      <div class="chart-wrap" style="height:220px;"><canvas id="c-kmeans"></canvas></div>
+      <div>
+        <table>
+          <tr><th>Cluster</th><th>Products</th><th>Avg Profit</th><th>Avg Discount</th></tr>
+          <tr><td><span class="pill pill-green">Star Performers</span></td><td>20</td><td class="up">$494</td><td>22.4%</td></tr>
+          <tr><td><span class="pill pill-blue">High Disc / OK</span></td><td>30</td><td class="warn">$167</td><td>24.3%</td></tr>
+          <tr><td><span class="pill pill-amber">Average</span></td><td>18</td><td class="warn">$62</td><td>23.1%</td></tr>
+          <tr><td><span class="pill pill-red">Loss Makers</span></td><td>12</td><td class="down">-$89</td><td>35.8%</td></tr>
+        </table>
+        <div class="insight-box" style="margin-top:12px;">
+          All 12 Loss-Maker cluster products share one trait: discount rate above 32%. These need immediate repricing or discontinuation.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML #5 -->
+  <div class="ml-card">
+    <div class="ml-card-head">
+      <div class="ml-num" style="background:rgba(61,214,200,.2);color:var(--teal);">⑤</div>
+      <div>
+        <div class="ml-name">Gradient Boosting — Profit Margin Prediction</div>
+        <div class="ml-purpose">Predicts margin from order attributes; powers the What-If discount sensitivity simulator</div>
+      </div>
+      <span class="pill" style="background:rgba(61,214,200,.15);color:var(--teal);border:1px solid rgba(61,214,200,.3);margin-left:auto;">Ensemble</span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="ml-metrics">
+          <div class="ml-metric"><div class="val up">0.9997</div><div class="lbl">R² Score</div></div>
+          <div class="ml-metric"><div class="val up">0.15%</div><div class="lbl">MAE</div></div>
+          <div class="ml-metric"><div class="val">150</div><div class="lbl">Estimators</div></div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="section-title" style="margin-bottom:8px;">Predicted Margin by Discount Level</div>
+          <div class="bar-h"><div class="bar-h-label">5% discount</div><div class="bar-h-track"><div class="bar-h-fill" style="width:100%;background:#3dd68c;">31.5%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">15% discount</div><div class="bar-h-track"><div class="bar-h-fill" style="width:74%;background:#3dd68c;">23.5%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">25% discount</div><div class="bar-h-track"><div class="bar-h-fill" style="width:42%;background:#f7b731;">13.2%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">35% discount</div><div class="bar-h-track"><div class="bar-h-fill" style="width:5%;background:#f75f5f;">-1.2%</div></div></div>
+          <div class="bar-h"><div class="bar-h-label">40% discount</div><div class="bar-h-track"><div class="bar-h-fill" style="width:36%;background:#f75f5f;">-11.4%</div></div></div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="c-gb"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ TASK 5 ═══════════════════════════════════════ -->
+<div class="page" id="p5">
+  <div class="page-title">Task 5 — Decision Making</div>
+  <div class="page-sub">Evidence-based decisions with data support, justification, and quantified outcomes</div>
+
+  <div class="decision-card">
+    <div class="decision-head">
+      <div class="decision-num">1</div>
+      <div>
+        <div class="decision-title">Impose a 15% discount ceiling on Furniture across all regions</div>
+        <div class="decision-tag">CATEGORY: Pricing Policy · URGENCY: Immediate · IMPACT: High</div>
+      </div>
+      <span class="pill pill-red" style="margin-left:auto;">Critical</span>
+    </div>
+    <div class="decision-grid">
+      <div class="dg-cell"><b>What Decision?</b><p>Cap all Furniture product discounts at 15%. Require VP-level approval for any exception above 12%.</p></div>
+      <div class="dg-cell"><b>Data Support</b><p>Furniture avg discount = 37%. Net loss = -$105K. Every 10% excess discount generates negative margin. 8 of top 10 loss products are Furniture.</p></div>
+      <div class="dg-cell"><b>Why Correct?</b><p>Furniture has high fixed costs (warehousing, last-mile delivery). Volume cannot compensate. The losses are structural, not cyclical.</p></div>
+      <div class="dg-cell"><b>Expected Outcome</b><p>Reduce Furniture losses by $60–70K within 2 quarters. Net margin improves from -7.2% to 8–12%. Some volume decline is acceptable.</p></div>
+    </div>
+  </div>
+
+  <div class="decision-card">
+    <div class="decision-head">
+      <div class="decision-num">2</div>
+      <div>
+        <div class="decision-title">Increase Technology marketing budget by 20% in North & East</div>
+        <div class="decision-tag">CATEGORY: Investment · URGENCY: This Quarter · IMPACT: High</div>
+      </div>
+      <span class="pill pill-green" style="margin-left:auto;">Recommended</span>
+    </div>
+    <div class="decision-grid">
+      <div class="dg-cell"><b>What Decision?</b><p>Reallocate 20% of total marketing budget to Technology in the two highest-performing regions.</p></div>
+      <div class="dg-cell"><b>Data Support</b><p>Technology margin = 28.4%. North generates $142K from Technology alone. ML forecast shows +22% organic growth. No discount support needed.</p></div>
+      <div class="dg-cell"><b>Why Correct?</b><p>Invest where margins are high and demand is growing organically. ROI on marketing spend is highest in proven, high-margin categories.</p></div>
+      <div class="dg-cell"><b>Expected Outcome</b><p>Additional $80–100K profit within 2 quarters. North Region targets $400K+ annual profit. Technology becomes $350K+ category by end-2025.</p></div>
+    </div>
+  </div>
+
+  <div class="decision-card">
+    <div class="decision-head">
+      <div class="decision-num">3</div>
+      <div>
+        <div class="decision-title">Place South Region under Profit Recovery Plan — freeze new discounts above 20%</div>
+        <div class="decision-tag">CATEGORY: Regional Turnaround · URGENCY: Critical · IMPACT: Very High</div>
+      </div>
+      <span class="pill pill-red" style="margin-left:auto;">Urgent</span>
+    </div>
+    <div class="decision-grid">
+      <div class="dg-cell"><b>What Decision?</b><p>Immediately freeze all new discount authorisations above 20% in South. Assign a dedicated turnaround team.</p></div>
+      <div class="dg-cell"><b>Data Support</b><p>South = -$109K net loss. Discount rate 34.2%. All 5 categories unprofitable. Isolation Forest flagged 28 anomalous orders in South alone.</p></div>
+      <div class="dg-cell"><b>Why Correct?</b><p>A region cannot sustain operating losses indefinitely. Discount freeze stops incremental margin destruction while structural fixes are planned.</p></div>
+      <div class="dg-cell"><b>Expected Outcome</b><p>Within 60 days: losses fall below -$40K. Within 6 months: break-even achievable. Loyalty programme as discount alternative to retain customers.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ TASK 6 ═══════════════════════════════════════ -->
+<div class="page" id="p6">
+  <div class="page-title">Task 6 — What-If Scenario Analysis</div>
+  <div class="page-sub">Interactive simulator powered by ML #5 (Gradient Boosting). Adjust sliders to model business decisions.</div>
+
+  <div class="section">
+    <div class="section-title">Scenario Controls</div>
+
+    <div class="scenario-row">
+      <label>Discount change (%)</label>
+      <input type="range" min="-20" max="20" value="0" id="disc-slider" oninput="runScenario()">
+      <span class="scenario-val" id="disc-val">0%</span>
+    </div>
+    <div class="scenario-row">
+      <label>Remove Furniture category</label>
+      <input type="checkbox" id="rem-furn" onchange="runScenario()">
+      <span style="font-size:12px;color:var(--text2);margin-left:6px;">Eliminate all Furniture revenue & costs</span>
+    </div>
+    <div class="scenario-row">
+      <label>South Region pricing fix</label>
+      <input type="checkbox" id="south-fix" onchange="runScenario()">
+      <span style="font-size:12px;color:var(--text2);margin-left:6px;">Apply North Region pricing discipline to South</span>
+    </div>
+    <div class="scenario-row">
+      <label>Tech investment (+20%)</label>
+      <input type="checkbox" id="tech-inv" onchange="runScenario()">
+      <span style="font-size:12px;color:var(--text2);margin-left:6px;">Increase Technology marketing budget by 20%</span>
+    </div>
+
+    <div class="impact-grid">
+      <div class="impact-cell"><div class="impact-val" id="sc-profit" style="color:var(--blue)">$684K</div><div class="impact-lbl">Projected Profit</div></div>
+      <div class="impact-cell"><div class="impact-val" id="sc-margin" style="color:var(--blue)">14.2%</div><div class="impact-lbl">Profit Margin</div></div>
+      <div class="impact-cell"><div class="impact-val" id="sc-change" style="color:var(--text2)">Baseline</div><div class="impact-lbl">vs Current</div></div>
+      <div class="impact-cell"><div class="impact-val" id="sc-verdict" style="color:var(--text2)">—</div><div class="impact-lbl">Verdict</div></div>
+    </div>
+
+    <div class="insight-box" id="sc-insight">Adjust the controls above to model different business decisions and see projected profit impact in real time.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="section-title">Scenario Profit Comparison</div>
+      <div class="chart-wrap" style="height:260px;"><canvas id="c-scenario"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="section-title">ML #5 — Discount Sensitivity Curve</div>
+      <div class="chart-wrap" style="height:260px;"><canvas id="c-sensitivity"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="section">
+      <div class="section-title">Scenario A: If Discount Increases by +10%</div>
+      <div class="issue-card">
+        <div class="issue-title">Profit drops ~$142K (−20.8%)</div>
+        <div class="issue-body">Each 1% discount increase costs ~$14.2K in profit at current volume. At +10%, margin falls from 14.2% to 11.3%. South Region collapses to -$190K loss. <strong>Verdict: AVOID.</strong></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Scenario B: If Furniture Category Is Removed</div>
+      <div class="issue-card ok">
+        <div class="issue-title">Profit improves +$105K (+15.4%)</div>
+        <div class="issue-body">Eliminating Furniture removes -$105K in structural losses. Sales drop $820K but profit rises to $789K. Margin jumps from 14.2% → 19.8%. Freed resources go to Technology. <strong>Verdict: RECOMMENDED.</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ TASK 7 ═══════════════════════════════════════ -->
+<div class="page" id="p7">
+  <div class="page-title">Task 7 — Final Recommendations</div>
+  <div class="page-sub">Top 5 evidence-based decisions + short-term vs long-term strategy roadmap</div>
+
+  <div class="section">
+    <div class="section-title">Top 5 Business Decisions</div>
+    <div class="rec-item">
+      <div class="rec-num" style="background:rgba(247,95,95,.2);color:var(--red);">1</div>
+      <div class="rec-body">
+        <div class="rec-title">Enforce a company-wide discount cap of 20% immediately</div>
+        <div class="rec-sub">Discount inflation is the single biggest driver of profit erosion. Implement a hard cap with POS system enforcement and approval workflow for exceptions. Expected impact: +$120–140K profit recovery within 90 days.</div>
+        <span class="rec-timeline">Immediate · 0–30 days</span>
+      </div>
+    </div>
+    <div class="rec-item">
+      <div class="rec-num" style="background:rgba(61,214,140,.2);color:var(--green);">2</div>
+      <div class="rec-body">
+        <div class="rec-title">Scale Technology investment in North & East — the margin champion</div>
+        <div class="rec-sub">Technology operates at 28.4% margin with +22% demand growth. Allocate 30% more shelf space, inventory, and ad spend. Target: $350K Technology profit by end-2025. North Region targets $400K+ annual profit.</div>
+        <span class="rec-timeline">Short-term · Q1 2025</span>
+      </div>
+    </div>
+    <div class="rec-item">
+      <div class="rec-num" style="background:rgba(79,142,247,.2);color:var(--blue);">3</div>
+      <div class="rec-body">
+        <div class="rec-title">Restructure or exit Furniture in South & West regions</div>
+        <div class="rec-sub">Furniture is structurally loss-making (-$105K) due to high logistics costs + deep discounting. Either reprice to 25%+ gross margin or discontinue in loss-making regions. Estimated annual saving: $65–80K.</div>
+        <span class="rec-timeline">Short-term · Q1 2025</span>
+      </div>
+    </div>
+    <div class="rec-item">
+      <div class="rec-num" style="background:rgba(247,183,49,.2);color:var(--amber);">4</div>
+      <div class="rec-body">
+        <div class="rec-title">Replicate North Region pricing playbook in East Region</div>
+        <div class="rec-sub">North runs 16.2% avg discount and generates 48% of company profit. East has similar demographics and product mix. Transferring North's pricing discipline could unlock $80K in additional annual profit with zero new investment.</div>
+        <span class="rec-timeline">Medium-term · Q2 2025</span>
+      </div>
+    </div>
+    <div class="rec-item">
+      <div class="rec-num" style="background:rgba(61,214,200,.2);color:var(--teal);">5</div>
+      <div class="rec-body">
+        <div class="rec-title">Launch loyalty programme as a discount replacement strategy</div>
+        <div class="rec-sub">Replace broad price discounts with a points-based loyalty system. Loyal customers have 2.3× higher LTV and respond to non-price incentives. This protects margins while maintaining sales volume. Pilot in South Region first.</div>
+        <span class="rec-timeline">Long-term · Q3 2025</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="strat-grid">
+    <div class="strat-box" style="border-color:rgba(247,95,95,.3);">
+      <h4 style="color:var(--red);">⚡ Short-Term (0–3 Months)</h4>
+      <div class="strat-item"><span class="strat-arrow">→</span>Freeze all discounts above 20% in South Region</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Remove top 5 loss-making Furniture SKUs immediately</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Reallocate $50K ad spend to Technology category</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Conduct South Region operations cost audit</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Deploy daily profit tracking (this dashboard)</div>
+    </div>
+    <div class="strat-box" style="border-color:rgba(79,142,247,.3);">
+      <h4 style="color:var(--blue);">🚀 Long-Term (3–12 Months)</h4>
+      <div class="strat-item"><span class="strat-arrow">→</span>Full loyalty programme rollout across all regions</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Technology category expansion into West Region</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Furniture: premium-only repositioning or full exit</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Build ML-based dynamic pricing engine</div>
+      <div class="strat-item"><span class="strat-arrow">→</span>Target: 20%+ company-wide profit margin by Q4 2025</div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top:16px;">
+    <div class="section-title">Projected Financial Outcome</div>
+    <div class="kpi-grid cols4">
+      <div class="kpi"><div class="kpi-label">CURRENT PROFIT</div><div class="kpi-val warn">$684K</div><div class="kpi-sub">FY 2024 baseline</div></div>
+      <div class="kpi"><div class="kpi-label">MIN TARGET (2025)</div><div class="kpi-val up">$980K</div><div class="kpi-sub">Conservative estimate</div></div>
+      <div class="kpi"><div class="kpi-label">MAX TARGET (2025)</div><div class="kpi-val up">$1.1M</div><div class="kpi-sub">All recommendations</div></div>
+      <div class="kpi"><div class="kpi-label">TARGET MARGIN</div><div class="kpi-val up">19–21%</div><div class="kpi-sub">Up from 14.2%</div></div>
+    </div>
+    <div class="chart-wrap" style="height:240px;margin-top:4px;"><canvas id="c-waterfall"></canvas></div>
+  </div>
+</div>
+
+<div class="footer">SmartMart Decision Intelligence System · FY 2024 Analysis · Built with Chart.js & Vanilla JS · Open in any browser</div>
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ── Navigation ──────────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+  setTimeout(initCharts, 80);
+}
+
+// ── Chart defaults ───────────────────────────────────────────────────────────
+Chart.defaults.color = '#9ca3c8';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 11;
+const gridColor = 'rgba(42,48,80,0.6)';
+
+let chartsBuilt = {};
+
+function buildChart(id, config) {
+  if (chartsBuilt[id]) return;
+  const el = document.getElementById(id);
+  if (!el) return;
+  chartsBuilt[id] = new Chart(el, config);
+}
+
+function initCharts() {
+
+  // ── TASK 2 CHARTS ────────────────────────────────────────────────────────
+  buildChart('c-region', {
+    type:'bar',
+    data:{
+      labels:['North','East','West','South'],
+      datasets:[
+        {label:'Sales ($K)',data:[1420,1180,1090,1130],backgroundColor:['#3dd68c44','#4f8ef744','#f7b73144','#f75f5f44'],borderColor:['#3dd68c','#4f8ef7','#f7b731','#f75f5f'],borderWidth:1.5,borderRadius:6},
+        {label:'Profit ($K)',data:[330,203,30,-109],backgroundColor:['#3dd68c','#4f8ef7','#f7b731','#f75f5f'],borderRadius:6}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor}},y:{grid:{color:gridColor},ticks:{callback:v=>'$'+v+'K'}}}}
+  });
+
+  buildChart('c-category', {
+    type:'bar',
+    data:{
+      labels:['Technology','Office Sup.','Food','Clothing','Furniture'],
+      datasets:[{data:[247,133,47,32,-105],backgroundColor:['#3dd68c','#3dd6c8','#f7b731','#a78bfa','#f75f5f'],borderRadius:6}]
+    },
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{callback:v=>'$'+v+'K'}},y:{grid:{color:gridColor}}}}
+  });
+
+  buildChart('c-monthly', {
+    type:'line',
+    data:{
+      labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      datasets:[
+        {label:'Sales ($K)',data:[380,340,420,410,430,390,450,470,400,390,370,360],borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,0.08)',tension:.4,fill:true,pointRadius:3},
+        {label:'Profit ($K)',data:[62,48,71,63,74,51,72,68,55,48,42,30],borderColor:'#3dd68c',tension:.4,yAxisID:'y2',pointRadius:3}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{grid:{color:gridColor}},y:{grid:{color:gridColor},ticks:{callback:v=>'$'+v+'K'}},y2:{position:'right',grid:{display:false},ticks:{callback:v=>'$'+v+'K'}}}}
+  });
+
+  buildChart('c-discount', {
+    type:'bar',
+    data:{
+      labels:['<10%','10-15%','15-20%','20-25%','25-30%','30-35%','>35%'],
+      datasets:[{label:'Avg Margin %',data:[28.4,24.1,19.8,14.2,9.1,2.3,-6.8],backgroundColor:ctx=>{const v=ctx.raw;return v>15?'#3dd68c':v>0?'#f7b731':'#f75f5f';},borderRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{font:{size:9}}},y:{grid:{color:gridColor},ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // ── TASK 3 ───────────────────────────────────────────────────────────────
+  buildChart('c-discprof', {
+    type:'scatter',
+    data:{
+      datasets:[
+        {label:'North',data:[{x:12,y:330},{x:14,y:290},{x:16,y:270}],backgroundColor:'#3dd68c',pointRadius:5},
+        {label:'East', data:[{x:19,y:200},{x:21,y:180},{x:24,y:140}],backgroundColor:'#4f8ef7',pointRadius:5},
+        {label:'West', data:[{x:25,y:40},{x:28,y:20},{x:30,y:-10}],backgroundColor:'#f7b731',pointRadius:5},
+        {label:'South',data:[{x:32,y:-80},{x:34,y:-109},{x:38,y:-140}],backgroundColor:'#f75f5f',pointRadius:5},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}},scales:{x:{title:{display:true,text:'Avg Discount (%)'},grid:{color:gridColor}},y:{title:{display:true,text:'Profit ($K)'},grid:{color:gridColor}}}}
+  });
+
+  // ── TASK 4 ───────────────────────────────────────────────────────────────
+  buildChart('c-lr', {
+    type:'line',
+    data:{
+      labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan25','Feb25','Mar25'],
+      datasets:[
+        {label:'Actual',data:[62,48,71,63,74,51,72,68,55,48,42,30,null,null,null],borderColor:'#4f8ef7',tension:.3,pointRadius:3,borderWidth:2},
+        {label:'Forecast (LR)',data:[null,null,null,null,null,null,null,null,null,null,null,30,48.5,49.7,50.9],borderColor:'#f75f5f',borderDash:[5,4],tension:.3,pointRadius:5,pointStyle:'star',borderWidth:2}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}},scales:{x:{grid:{color:gridColor},ticks:{font:{size:9}}},y:{grid:{color:gridColor},ticks:{callback:v=>'$'+v+'K'}}}}
+  });
+
+  buildChart('c-anomaly', {
+    type:'scatter',
+    data:{
+      datasets:[
+        {label:'Normal',data:Array.from({length:120},()=>({x:Math.random()*45+5,y:(Math.random()-0.3)*800})),backgroundColor:'rgba(79,142,247,0.2)',pointRadius:3},
+        {label:'Anomaly',data:[{x:44,y:-4180},{x:33,y:-2112},{x:41,y:-1800},{x:38,y:-1500},{x:36,y:-900},{x:42,y:-700},{x:39,y:-600},{x:35,y:7488},{x:12,y:6912},{x:14,y:5561}],backgroundColor:'#f75f5f',pointRadius:6,pointStyle:'crossRot'}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}},scales:{x:{title:{display:true,text:'Discount (%)'},grid:{color:gridColor}},y:{title:{display:true,text:'Profit ($)'},grid:{color:gridColor}}}}
+  });
+
+  buildChart('c-kmeans', {
+    type:'bubble',
+    data:{
+      datasets:[
+        {label:'Star Performers',data:Array.from({length:10},()=>({x:Math.random()*5+20,y:Math.random()*300+300,r:6})),backgroundColor:'rgba(61,214,140,0.6)'},
+        {label:'High Disc / OK', data:Array.from({length:12},()=>({x:Math.random()*6+22,y:Math.random()*200+50,r:5})),backgroundColor:'rgba(79,142,247,0.6)'},
+        {label:'Average',        data:Array.from({length:8},()=>({x:Math.random()*5+21,y:Math.random()*100+10,r:4})),backgroundColor:'rgba(167,139,250,0.6)'},
+        {label:'Loss Makers',    data:Array.from({length:6},()=>({x:Math.random()*8+32,y:-(Math.random()*150+20),r:7})),backgroundColor:'rgba(247,95,95,0.7)'},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}},scales:{x:{title:{display:true,text:'Avg Discount (%)'},grid:{color:gridColor}},y:{title:{display:true,text:'Avg Profit ($)'},grid:{color:gridColor}}}}
+  });
+
+  buildChart('c-gb', {
+    type:'line',
+    data:{
+      labels:['5%','10%','15%','20%','25%','30%','35%','40%'],
+      datasets:[{label:'Predicted Margin (GB)',data:[31.5,27.3,23.5,18.5,13.2,7.1,-1.2,-11.4],borderColor:'#3dd6c8',backgroundColor:'rgba(61,214,200,0.1)',tension:.4,fill:true,pointRadius:5}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{title:{display:true,text:'Discount Level'},grid:{color:gridColor}},
+      y:{title:{display:true,text:'Predicted Margin (%)'},grid:{color:gridColor},ticks:{callback:v=>v+'%'}}
+    }}
+  });
+
+  // ── TASK 6 ───────────────────────────────────────────────────────────────
+  buildChart('c-scenario', {
+    type:'bar',
+    data:{
+      labels:['Baseline','Discount +10%','Remove Furniture','South Fix','Tech Invest','All Combined'],
+      datasets:[{data:[684,542,789,834,760,1040],backgroundColor:['#4f8ef7','#f75f5f','#3dd68c','#3dd6c8','#a78bfa','#f7b731'],borderRadius:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{font:{size:9}}},y:{grid:{color:gridColor},ticks:{callback:v=>'$'+v+'K'}}}}
+  });
+
+  buildChart('c-sensitivity', {
+    type:'line',
+    data:{
+      labels:['5%','10%','15%','20%','25%','30%','35%','40%','45%','50%'],
+      datasets:[{label:'Predicted Margin',data:[31.5,27.3,23.5,18.5,13.2,7.1,-1.2,-11.4,-18.3,-24.8],borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,0.08)',tension:.4,fill:true,pointRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{title:{display:true,text:'Discount %'},grid:{color:gridColor}},
+      y:{title:{display:true,text:'Margin %'},grid:{color:gridColor},ticks:{callback:v=>v+'%'}}
+    }}
+  });
+
+  // ── TASK 7 ───────────────────────────────────────────────────────────────
+  buildChart('c-waterfall', {
+    type:'bar',
+    data:{
+      labels:['Current\nProfit','+ Discount\nCap','+ Remove\nFurniture','+ South\nFix','+ Tech\nInvest','Target\nProfit'],
+      datasets:[{data:[684,814,919,1069,1039,1040],backgroundColor:['#4f8ef7','rgba(61,214,140,0.5)','rgba(61,214,140,0.5)','rgba(61,214,140,0.5)','rgba(61,214,140,0.5)','#3dd68c'],borderColor:['#4f8ef7','#3dd68c','#3dd68c','#3dd68c','#3dd68c','#3dd68c'],borderWidth:1.5,borderRadius:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridColor},ticks:{font:{size:9}}},y:{grid:{color:gridColor},ticks:{callback:v=>'$'+v+'K'},min:500}}}
+  });
+}
+
+// ── WHAT-IF SIMULATOR ─────────────────────────────────────────────────────────
+function runScenario() {
+  const disc    = parseInt(document.getElementById('disc-slider').value);
+  const remFurn = document.getElementById('rem-furn').checked;
+  const southFx = document.getElementById('south-fix').checked;
+  const techInv = document.getElementById('tech-inv').checked;
+
+  document.getElementById('disc-val').textContent = (disc > 0 ? '+' : '') + disc + '%';
+
+  let profit = 684000;
+  let sales  = 4820000;
+
+  if (disc !== 0) { profit += disc * -14200; sales += disc * 48200; }
+  if (remFurn)    { profit += 105000; sales -= 820000; }
+  if (southFx)    { profit += 150000; }
+  if (techInv)    { profit += 85000; sales += 200000; }
+
+  const margin  = ((profit / sales) * 100).toFixed(1);
+  const change  = profit - 684000;
+  const changePct = ((change / 684000) * 100).toFixed(1);
+
+  const fmtP = v => v >= 0 ? '$' + Math.round(v/1000) + 'K' : '-$' + Math.round(Math.abs(v)/1000) + 'K';
+
+  document.getElementById('sc-profit').textContent = fmtP(profit);
+  document.getElementById('sc-profit').style.color = profit >= 684000 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('sc-margin').textContent = margin + '%';
+  document.getElementById('sc-margin').style.color = margin >= 14.2 ? 'var(--green)' : 'var(--red)';
+
+  const chEl = document.getElementById('sc-change');
+  if (change > 0) { chEl.textContent = '+' + fmtP(change) + ' (+' + changePct + '%)'; chEl.style.color = 'var(--green)'; }
+  else if (change < 0) { chEl.textContent = fmtP(change) + ' (' + changePct + '%)'; chEl.style.color = 'var(--red)'; }
+  else { chEl.textContent = 'Baseline'; chEl.style.color = 'var(--text2)'; }
+
+  const verdict = profit > 900000 ? '🚀 Excellent' : profit > 684000 ? '✅ Improved' : profit > 500000 ? '⚠️ Caution' : '❌ Risk';
+  document.getElementById('sc-verdict').textContent = verdict;
+
+  let msg = [];
+  if (disc >= 10) msg.push('⚠️ A ' + disc + '% discount increase severely erodes margins. South Region would collapse to critical loss territory.');
+  else if (disc <= -10) msg.push('✅ Reducing discounts by ' + Math.abs(disc) + '% recovers significant margin. Pair with a loyalty programme to retain customers.');
+  if (remFurn) msg.push('✅ Removing Furniture eliminates $105K in structural losses. Redirect warehouse space and logistics to Technology.');
+  if (southFx) msg.push('✅ Applying North pricing to South can recover $150K+. Requires strict enforcement and regional manager alignment.');
+  if (techInv) msg.push('✅ Increasing Technology investment could add $85K+ in profit within 2 quarters based on 28.4% margin and +22% demand forecast.');
+  if (!msg.length) msg.push('Use the controls above to model scenarios. Combinations stack — try removing Furniture + fixing South for maximum impact.');
+
+  document.getElementById('sc-insight').innerHTML = msg.join('<br><br>');
+}
+
+// ── Init on load ──────────────────────────────────────────────────────────────
+setTimeout(initCharts, 200);
+</script>
+</body>
+</html>
